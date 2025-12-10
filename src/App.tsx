@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { ShoppingCart, MapPin, Search, ChevronLeft, Plus, Minus } from 'lucide-react';
+import { ShoppingCart, MapPin, Search, ChevronLeft, Plus, Minus, ArrowUp } from 'lucide-react';
 
 type AuthStep = 'initial' | 'phone' | 'otp';
 type AppStep = 'auth' | 'landing' | 'restaurant';
@@ -120,6 +120,8 @@ function App() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [showBackToTop, setShowBackToTop] = useState(false);
+  const mainScrollRef = useRef<HTMLDivElement>(null);
   const otpInputs = useRef<(HTMLInputElement | null)[]>([]);
 
   useEffect(() => {
@@ -192,6 +194,17 @@ function App() {
     r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     r.cuisine.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.currentTarget;
+    setShowBackToTop(target.scrollTop > 300);
+  };
+
+  const scrollToTop = () => {
+    if (mainScrollRef.current) {
+      mainScrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -352,7 +365,7 @@ function App() {
           </main>
         </div>
       ) : selectedRestaurant ? (
-        <div className="flex flex-col h-screen">
+        <div className="flex flex-col min-h-screen">
           <header className="bg-white border-b border-gray-200 sticky top-0">
             <div className="px-6 py-4 flex items-center justify-between">
               <button
@@ -388,14 +401,14 @@ function App() {
                 </button>
               </div>
 
-              <div className="flex gap-3 mb-8 overflow-x-auto pb-2">
+              <div className="flex gap-2 mb-8 overflow-x-auto pb-3">
                 {selectedRestaurant.categories.map((category) => (
                   <button
                     key={category}
                     onClick={() => setSelectedCategory(category)}
-                    className={`px-4 py-2 rounded-full whitespace-nowrap transition-colors ${
+                    className={`px-5 py-2 rounded-full whitespace-nowrap font-medium transition-all ${
                       selectedCategory === category
-                        ? 'bg-orange-100 text-orange-600 font-medium'
+                        ? 'bg-orange-100 text-orange-600'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
                   >
@@ -404,49 +417,52 @@ function App() {
                 ))}
               </div>
 
-              {selectedRestaurant.menu.map((category_items, idx) => {
-                const categoryName = category_items.category;
+              {Array.from(new Set(selectedRestaurant.menu.map(m => m.category))).map((categoryName) => {
                 const items = selectedRestaurant.menu.filter(m => m.category === categoryName);
                 return (
-                  <div key={idx} className="mb-12">
-                    <h2 className="text-2xl font-bold text-gray-800 mb-6">{categoryName}</h2>
+                  <div key={categoryName} className="mb-10">
+                    <h2 className="text-2xl font-bold text-gray-800 mb-6">{categoryName} ({items.length})</h2>
                     <div className="space-y-6">
                       {items.map((item) => (
-                        <div key={item.id} className="flex justify-between items-start pb-6 border-b border-gray-200">
+                        <div key={item.id} className="flex justify-between items-start gap-4 pb-6 border-b border-gray-200 last:border-0">
                           <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
-                              {item.isVeg && <span className="text-green-600 text-lg">●</span>}
-                              <h3 className="text-xl font-semibold text-gray-800">{item.name}</h3>
-                              {item.isBestseller && <span className="text-xs bg-orange-100 text-orange-600 px-2 py-1 rounded">Bestseller</span>}
-                            </div>
-                            <p className="text-gray-600 text-sm mb-3">{item.description}</p>
-                            <div className="flex items-center gap-3">
-                              {item.offerPrice ? (
-                                <>
-                                  <span className="text-lg font-semibold text-gray-800">Rs {item.offerPrice}</span>
-                                  <span className="text-sm text-gray-400 line-through">Rs {item.price}</span>
-                                </>
+                            <div className="flex items-center gap-3 mb-2">
+                              {item.isVeg ? (
+                                <span className="text-green-600 text-xl">●</span>
                               ) : (
-                                <span className="text-lg font-semibold text-gray-800">Rs {item.price}</span>
+                                <span className="text-red-600 text-xl">●</span>
                               )}
-                              {item.offerPrice && <span className="text-sm text-orange-600">Rs {item.price - item.offerPrice} off</span>}
+                              <h3 className="text-lg font-semibold text-gray-800">{item.name}</h3>
+                              {item.isBestseller && (
+                                <span className="text-xs bg-orange-100 text-orange-600 px-3 py-1 rounded font-medium">Bestseller</span>
+                              )}
+                            </div>
+                            <p className="text-gray-600 text-sm mb-4 ml-7">{item.description}</p>
+                            <div className="flex items-center gap-3 ml-7">
+                              <span className="text-lg font-bold text-gray-800">Rs {item.offerPrice || item.price}</span>
+                              {item.offerPrice && (
+                                <>
+                                  <span className="text-sm text-gray-400 line-through">Rs {item.price}</span>
+                                  <span className="text-sm text-red-600 font-medium">Rs {item.price - item.offerPrice} off</span>
+                                </>
+                              )}
                             </div>
                           </div>
-                          <div className="ml-4">
+                          <div>
                             {cart.find(c => c.item.id === item.id) ? (
-                              <div className="flex items-center gap-2 bg-orange-100 rounded-lg px-3 py-2">
+                              <div className="flex items-center gap-2 bg-orange-500 rounded-lg px-2 py-2">
                                 <button
                                   onClick={() => handleRemoveFromCart(item.id)}
-                                  className="text-orange-600 hover:text-orange-700"
+                                  className="text-white hover:opacity-80"
                                 >
                                   <Minus className="w-4 h-4" />
                                 </button>
-                                <span className="font-semibold text-orange-600 w-4 text-center">
+                                <span className="font-semibold text-white w-5 text-center text-sm">
                                   {cart.find(c => c.item.id === item.id)?.quantity}
                                 </span>
                                 <button
                                   onClick={() => handleAddToCart(item)}
-                                  className="text-orange-600 hover:text-orange-700"
+                                  className="text-white hover:opacity-80"
                                 >
                                   <Plus className="w-4 h-4" />
                                 </button>
@@ -454,7 +470,7 @@ function App() {
                             ) : (
                               <button
                                 onClick={() => handleAddToCart(item)}
-                                className="px-6 py-2 bg-orange-100 text-orange-600 font-medium rounded-lg hover:bg-orange-200 transition-colors"
+                                className="px-6 py-2 bg-orange-100 text-orange-600 font-semibold rounded-lg hover:bg-orange-200 transition-colors whitespace-nowrap"
                               >
                                 Add
                               </button>
@@ -478,66 +494,66 @@ function App() {
           </main>
         </div>
       ) : (
-        <div className="flex flex-col h-screen">
-          <header className="bg-white border-b border-gray-200 sticky top-0">
-            <div className="px-6 py-4 flex items-center justify-between">
-              <div>
-                <h1 className="text-3xl font-serif text-gray-800">Feastify</h1>
-              </div>
-              <div className="flex items-center gap-4">
-                <button className="text-gray-700 hover:text-gray-900">SignIn</button>
+        <div className="flex flex-col min-h-screen bg-white">
+          <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
+            <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+              <h1 className="text-3xl font-serif text-gray-800">Feastify</h1>
+              <div className="flex items-center gap-6">
+                <button className="text-gray-700 hover:text-gray-900 font-medium">SignIn</button>
                 <ShoppingCart className="w-6 h-6 text-orange-500 cursor-pointer" />
               </div>
             </div>
 
-            <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
-              <div className="flex items-center gap-2 mb-4">
-                <MapPin className="w-5 h-5 text-gray-600" />
-                <span className="text-gray-700 font-medium">Ganganagar</span>
+            <div className="max-w-7xl mx-auto px-6 py-4">
+              <div className="flex items-center gap-3 mb-4">
+                <MapPin className="w-5 h-5 text-orange-500" />
+                <span className="text-gray-800 font-semibold">Ganganagar</span>
               </div>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
                   type="text"
                   placeholder="Search For: your search query...."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-orange-500"
+                  className="w-full pl-12 pr-4 py-3 bg-gray-100 border border-gray-200 rounded-xl focus:outline-none focus:border-orange-500 focus:bg-white transition-colors"
                 />
               </div>
             </div>
           </header>
 
-          <main className="flex-1 overflow-auto">
-            <div className="h-64 bg-gradient-to-r from-gray-300 to-gray-400 relative flex items-center justify-center">
+          <main className="flex-1 overflow-auto" ref={mainScrollRef} onScroll={handleScroll}>
+            <div className="h-80 bg-gradient-to-r from-gray-300 to-gray-400 relative flex items-center justify-center">
               <img
                 src="https://images.pexels.com/photos/1998920/pexels-photo-1998920.jpeg?auto=compress&cs=tinysrgb&w=1200"
                 alt="Hero"
                 className="w-full h-full object-cover"
               />
-              <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-                <h1 className="text-white text-5xl font-bold">FOODWALLAH</h1>
+              <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                <h1 className="text-white text-6xl font-bold">FOODWALLAH</h1>
               </div>
             </div>
 
             <div className="max-w-7xl mx-auto px-6 py-12">
-              <h2 className="text-3xl font-bold text-gray-800 mb-2">
-                Restaurant with online food delivery in Ganga Nagar
-              </h2>
+              <div className="mb-8">
+                <h2 className="text-3xl font-bold text-gray-800 mb-6">
+                  Restaurant with online food delivery in Ganga Nagar
+                </h2>
 
-              <div className="flex gap-6 mb-8">
-                <button className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:border-gray-400">
-                  Price Range ↓
-                </button>
-                <button className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:border-gray-400">
-                  Restaurant Type ↓
-                </button>
-                <button className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:border-gray-400">
-                  Filters ↓
-                </button>
-                <button className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:border-gray-400">
-                  Sort ↓
-                </button>
+                <div className="flex gap-4 flex-wrap">
+                  <button className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:border-gray-400 font-medium transition-colors">
+                    Price Range
+                  </button>
+                  <button className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:border-gray-400 font-medium transition-colors">
+                    Restaurant Type
+                  </button>
+                  <button className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:border-gray-400 font-medium transition-colors">
+                    Filters
+                  </button>
+                  <button className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:border-gray-400 font-medium transition-colors">
+                    Sort
+                  </button>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
@@ -545,26 +561,26 @@ function App() {
                   <div
                     key={restaurant.id}
                     onClick={() => setSelectedRestaurant(restaurant)}
-                    className="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-lg transition-shadow cursor-pointer"
+                    className="bg-white rounded-3xl overflow-hidden shadow-md hover:shadow-xl transition-all cursor-pointer"
                   >
-                    <div className="relative h-48">
+                    <div className="relative h-48 overflow-hidden">
                       <img
                         src={restaurant.image}
                         alt={restaurant.name}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
                       />
                     </div>
-                    <div className="p-4">
-                      <h3 className="text-lg font-semibold text-gray-800 mb-1">{restaurant.name}</h3>
-                      <p className="text-sm text-gray-600 mb-3">{restaurant.cuisine}</p>
+                    <div className="p-5">
+                      <h3 className="text-xl font-semibold text-gray-800 mb-2">{restaurant.name}</h3>
+                      <p className="text-sm text-gray-600 mb-2">{restaurant.cuisine}</p>
                       <p className="text-xs text-gray-500 mb-3">{restaurant.location}</p>
-                      <p className="text-red-600 text-sm font-medium">Rs. {restaurant.priceForTwo} for two</p>
+                      <p className="text-red-600 text-sm font-semibold">Rs. {restaurant.priceForTwo} for two</p>
                     </div>
                   </div>
                 ))}
               </div>
 
-              <div className="flex justify-center py-8">
+              <div className="flex justify-center py-12 pb-20">
                 <div className="text-gray-500 flex items-center gap-2">
                   <div className="w-5 h-5 border-2 border-orange-500 border-r-transparent rounded-full animate-spin"></div>
                   Loading More Restaurants.....
@@ -573,37 +589,48 @@ function App() {
             </div>
           </main>
 
-          <footer className="bg-gray-900 text-gray-300 py-12">
-            <div className="max-w-7xl mx-auto px-6 grid grid-cols-4 gap-12 mb-8">
-              <div>
-                <h4 className="font-bold text-white mb-4">FoodWallah</h4>
-                <p className="text-sm">© 2025 Dine Order. All Rights Reserved</p>
-              </div>
-              <div>
-                <h4 className="font-bold text-white mb-4">Legal</h4>
-                <ul className="space-y-2 text-sm">
-                  <li><a href="#" className="hover:text-white">Privacy Policy</a></li>
-                  <li><a href="#" className="hover:text-white">Terms of Service</a></li>
-                </ul>
-              </div>
-              <div>
-                <h4 className="font-bold text-white mb-4">Company</h4>
-                <ul className="space-y-2 text-sm">
-                  <li><a href="#" className="hover:text-white">About Us</a></li>
-                  <li><a href="#" className="hover:text-white">Contact</a></li>
-                  <li><a href="#" className="hover:text-white">Careers</a></li>
-                </ul>
-              </div>
-              <div>
-                <h4 className="font-bold text-white mb-4">Social</h4>
-                <div className="flex gap-4 text-sm">
-                  <a href="#" className="hover:text-white">Instagram</a>
-                  <a href="#" className="hover:text-white">Facebook</a>
-                  <a href="#" className="hover:text-white">LinkedIn</a>
+          <footer className="bg-gray-900 text-gray-300 py-16 mt-auto">
+            <div className="max-w-7xl mx-auto px-6">
+              <div className="grid grid-cols-4 gap-12 mb-8">
+                <div>
+                  <h4 className="font-bold text-white mb-4">FoodWallah</h4>
+                  <p className="text-sm">© 2025 Dine Order. All Rights Reserved</p>
+                </div>
+                <div>
+                  <h4 className="font-bold text-white mb-4">Legal</h4>
+                  <ul className="space-y-2 text-sm">
+                    <li><a href="#" className="hover:text-white transition-colors">Privacy Policy</a></li>
+                    <li><a href="#" className="hover:text-white transition-colors">Terms of Service</a></li>
+                  </ul>
+                </div>
+                <div>
+                  <h4 className="font-bold text-white mb-4">Company</h4>
+                  <ul className="space-y-2 text-sm">
+                    <li><a href="#" className="hover:text-white transition-colors">About Us</a></li>
+                    <li><a href="#" className="hover:text-white transition-colors">Contact</a></li>
+                    <li><a href="#" className="hover:text-white transition-colors">Careers</a></li>
+                  </ul>
+                </div>
+                <div>
+                  <h4 className="font-bold text-white mb-4">Social</h4>
+                  <div className="flex gap-4 text-sm">
+                    <a href="#" className="hover:text-white transition-colors">Instagram</a>
+                    <a href="#" className="hover:text-white transition-colors">Facebook</a>
+                    <a href="#" className="hover:text-white transition-colors">LinkedIn</a>
+                  </div>
                 </div>
               </div>
             </div>
           </footer>
+
+          {showBackToTop && (
+            <button
+              onClick={scrollToTop}
+              className="fixed bottom-8 right-8 bg-orange-500 hover:bg-orange-600 text-white p-3 rounded-full shadow-lg transition-all duration-300 z-40"
+            >
+              <ArrowUp className="w-6 h-6" />
+            </button>
+          )}
         </div>
       )}
     </div>
